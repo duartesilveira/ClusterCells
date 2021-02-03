@@ -1,1 +1,2 @@
 # ClusterCells
+The goal of this project was to examine a set of bacterial cell images using machine learning techniques, including feature extraction, features selection and clustering, in order to help the biologists organize similar images based on a dataset with 563 PNG images taken from a super-resolution fluorescence microscopy photograph of Staphylococcus aureus, a common cause of hospital infections and often resistant to multiple antibiotics.
