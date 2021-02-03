@@ -1,0 +1,257 @@
+Atenção:
+- Não edite este ficheiro em programas como Word e afins. Use exclusivamente um editor de texto simples. Em caso de dúvida, use o editor do Spyder.
+- Não altere a estrutura deste ficheiro. Preencha as respostas apenas nos espaços respectivos (a seguir à tag R#:)
+- Pode adicionar linhas no espaço para as respostas mas as respostas devem ser sucintas e directas.
+- Pode incluir referências a imagens ou a ficheiros html como os relatórios gerados com os clusters. Para isso basta incluir este documento na pasta com os reports ou imagens e referí-los no texto pelo nome do ficheiro numa linha isolada. Por exemplo, a linha
+
+teste.png
+
+refere um ficheiro de imagem teste.png na mesma pasta deste documento.
+
+QUESTÔES:
+
+Q1: Explique como seleccionou os melhores atributos para a fase de clustering. Em particular, os métodos de visualização usados para explorar os 18 atributos extraídos e quaisquer testes estatísticos usados.
+R1:
+Numa primeira etapa, extraímos 18 features, conforme indicado no assignment, usando 3 métodos diferentes para o efeito (6 por cada método). O Principal Component Analysis, o t-Distributed Stochastic Neighbor Embedding e o Isometric mapping with Isomap.
+
+Posteriormente, procedemos à seleção das melhores features. Para o efeito, primeiramente standardizamos as features obtidas anteriormente e extraímos dos dados dos biólogos as labels que fizeram à mão.
+
+De seguida, utilizando as 81 imagens com label (cell cycle phase), fizemos um ANOVA F-test para determinar as features relevantes (que se correlacionam com os labels), já que pretendemos ajudar os biólogos na tarefa de classificar células com base no cell cycle phase.
+
+Este é um teste de hipóteses que utiliza as estatística de teste F = variação entre médias da amostra / variação dentro das amostras, para testar a hipótese nula de independência (linear) entre cada feature e os labels. 
+
+Realizámos este teste ao nível de significância 1% e removemos as features para as quais a hipótese de independência não foi rejeitada (queremos apenas as dependentes, com maior capacidade de explicar o cell cycle phase). Com este processo restaram-nos 6 features.
+
+Em seguida, utilizámos o coeficiente de correlação de Pearson para averiguar o grau de associação linear entre as restantes 6 features (com a totalidade dos dados, como ou sem label). Como visualização, escolhemos o heatmap:
+
+heatmap.png
+
+Como o coeficiente de correlação de pearson mede apenas correlações lineares, utilizámos um scatter plot para verificar possíveis padrões não lineares entre as features.
+
+scatter_plot.png
+
+Vericamos nestes plots um grau de associação alto entre algumas variáveis. Isto significa que, apesar de terem poder explicativo sobre os labels (F-test), algumas das features que restam são redundantes umas com as outras (carregam informação estatística idêntica sobre o problema).
+
+Como critério, quando várias features são correlacionadas entre si, escolhemos apenas a que carrega mais informação sobre o cell cycle phase (valor mais alto da estatítica F). Para facilitar este processo, as 6 features do teste F vêm ordenadas decrescentemente pelo valor da estatística F.
+
+Esta escolha foi das mais complicadas do trabalho pois (com as features ordenadadas por ordem decrescente de F-value [46.63388155, 42.17749338, 21.99504424, 19.1877839 ,  7.84258393,7.11268846]):
+
+.A feature 0 é correlacionada linearmente com a 1. 
+.A feature 1 é correlacionada com a 0 e com a 3 linearmente, e é possível verificar um padrão não linear com a 2.
+.A feature 2, além de verificar um padrão não linear com a 1, verifica o mesmo com a 3.
+.A feature 3 verifica os padrões já descritos.
+.A feature 4 é bastante linearmente correlacionada com a 2, não se verificando mais correlações.
+.A feature 5 não verifica correlações (os gráficos são espalmados por causa da escala).
+
+Apesar da feature 1 ter um F-value bastante alto, é correlacionada com a feature com F-value mais alto e com mais duas, pelo que decidimos removê-la. A feature 4 tem um coeficiente de correlação muito alto com a 2 e portanto também é removida.
+
+A parte mais difícil foi decidir se a feature 3 devia ou não ser mantida, dada a associação não linear que apresenta com a 2. Dada alguma ambiguidade quanto à itensidade do padrão verificado e após verificar os outputs dos vários métodos acbámos por decidir manter a feature3.
+
+Esta foi a nossa solução para diminuir o número de features, essencial devido a curse of dimensionality, notável em métodos baseados em distância (o nosso caso), mantendo o máximo de informação estatística possível.
+
+Q2: Depois de seleccionar os atributos, standardizou ou normalizou os valores? Justifique a sua decisão.
+R2:
+Sim, standardizamos os dados base devido aos diferentes graus de heterogeneidade das variáveis no nosso caso das features.
+De notar ainda que escolhemos standardizar em vez de normalizar, uma vez que normalizar é mais sensível a outliers, o que poderia distorcer os resultados.
+
+Q3: Explique como encontrou o valor do raio da vizinhança (epsilon) para o algoritmo de DBSCAN pelo procedimento descrito no artigo "A density-based algorithm for discovering clusters in large spatial databases with noise".
+R3:
+O valor do raio da vizinhança eps foi obtido através de um gráfico k-dist conforme descrito no artigo. Para o efeito, usando as nossas features já standardizadas, começámos por computar a distância de cada ponto ao seu k-ésimo vizinho mais próximo (neste caso, k=5, conforme indicação do docente) usando o método neighbors classe KNeighborsClassifier. De seguida ordenamos inversamente as distâncias obtidas. O gráfico k-dist é então o gráfico das distâncias ordenadas de forma descrescente. Observamos então que o epsilon ótimo obtido por esta heurística é sensivelmente 0.8, cuja abcissa é o ponto as distâncias começam a decrescer a um ritmo menor e o gráfico forma um primeiro "vale". Os pontos à direita desta abcissa serão afectados a um cluster e os pontos à esquerda serão considerados ruído.
+
+elbow_eps_5_dist.png
+
+Q4: Examinando os clusters gerados pelo algoritmo DBSCAN com o valor otimizado pelo método descrito no artigo, parece-lhe que o resultado é adequado para aglomerar estas imagens? Justifique a sua resposta.
+R4:
+O resultado obtido pode ser visualizado no seguinte ficheiro:
+
+DBSCAN_0.8.png
+
+O resultado não nos parece adequado para o problema em causa, parece-me um valor para o raio demasiado elevado. Esta conclusão advém do facto de o classificador apenas classificar as imagens num único cluster (para além do ruído, que ainda por cima não contém erros mas sim células que pretenderiamos classificar). Assim sendo, este valor não permite ter bons resultados sendo que a heterogeneidade das células obtidas é muito elevada e, deste modo, não ajudamos em nada o trabalho dos biólogos. Um valor menor do eps poderia ajudar a separar as células em diferentes clusters (depois vamos verificar que os resultados nunca são muito bons).
+
+Q5: Descreva a sua análise dos parâmetros k (para K-Means) e epsilon (para DBSCAN) usando os indicadores internos e externos indicados no enunciado. Inclua os dois gráficos com os valores dos indicadores (indicando o nome da imagem de cada plot numa linha da resposta) em função dos parâmetros k e epsilon e descreva a escolha dos intervalos nos quais examinou estes parâmetros. Indique, justificando, que conclusões pode tirar desta análise.
+R5:
+
+KMEANS:
+
+Sendo k o número de clusters, para ajudar os biólogos no seu trabalho (classificar as células por 3 cycle phases + eventuais erros), não convém ter um número de clusters muito baixo, pois estes terão bastantes elementos, mas de vários cycle phases (precision baixa), e teria de existir bastante procura manual dentro de cada cluster.
+
+Por outro lado, também não convém ter um conjunto de clusters muito alto, pois os biólogos seriam obrigados a verificar imensos clusters apenas para classificar as células em 4 grupos. Sendo assim, como existem pelo menos 4 grupos, decidimos variar o k de 4 a 12 (limite superior que nos pareceu razoável).
+
+Indicadores internos (usamos todos os dados):
+
+Silhouette Score: Embora no nosso problema o único indicador interno devesse ser o mais interessante e útil de analisar (pois a grande maioria dos dados não tem label), para definir o k ideal, este não varia praticamente com k, pelo que é difícil de tirar alguma informação do mesmo.
+
+Indicadores externos (usamos apenas as 81 imagens com label):
+
+Estes têm a clara limitação de usar apenas um pequeno subconjunto dos dados (sujeitos a bias, pois os dados com label nem são necessariamente uma amostra aleatória dos totais), no entanto, será com eles que vamos trabalhar.
+
+Por o subconjunto ser pequeno, as curvas obtidas variam de forma relevante cada vez que corremos o programa. Após várias inspecções, acabámos por fixar uma seed, e escolher valores de k que pareceram algo coerentes nestas inspecções.
+
+Recall: percentagem dos pares de imagens com a mesma label que são afectados ao mesmo cluster. Esta tem um formato tendencialmente decrescente, pois com menos e maiores clusters mais pontos com o mesmo label estarão juntos (k=1 implica recall=1). No entanto, optimizar exclusivamente por esta métrica não ajuda os biólogos. Terá de haver bastante procura manual com poucos clusters.
+
+Precision: percentagem dos pares de imagens afectados ao mesmo cluster que têm efectivamente a mesma label. Tem picos em k=7,9 e 11. É de facto importante ter precisões altas para ajudar os biólogos, para que cada cluster tenha predominantemente um tipo de célula (1 cell cycle phase ou erros), poupando assim o trabalho manual. Deve-se no entanto ter cuidado para não se usar um número demasiado grande de clusters, pois assim mesmo com alta precisão não se poupa trabalho manual.
+ 
+F1 score: média harmónica entre a precision e o recall. Concilia ambos. Começa por ser bastante altos para níveis baixos de clusters, devido ao elevado nível de recall, mas isto não é interessante pois vai haver uma grande mistura de tipos ceculares em cada cluster (precision baixa).Tem de seguida 2 picos em k=9 e k=11, onde a precision é alta (o recall tem também um pico em k=11).
+
+Rand index: análogo da accuracy para clusters. Varia muito pouco mas nota-se um padrão idêntico ao da precision e F1, com picos em k=7,9 e 11.
+
+Adjusted Rand index: versão corrigida do Rand index. Varia mais do que o último verifica os mesmos picos.
+
+Vistos todos os indicadores, dados que o objectivo é poupar trabalho aos biólogos, optamos por escolher k=7 (menos clusters com um decréscimo de precisão), k=11 (a maior precisão com mais clusters) e k=9 ( parece ser a solução ideal, com uma precisão quase igual a k=11 mas com menos 2 clusters). Estes constituem picos na maioria das métricas e têm precisões relativamente altas (bastante útil neste contexto). Por outro lado, consideramos que estes números de clusters são razoáveis e não darão muito trabalho aos biólogos. Apresentamos de seguida o plot:
+
+KMEANS.png
+
+DBSCAN:
+
+Para este algoritmo utilizámos as métricas anteriormente descritas, fazendo variar o epsilon (raio da vizinhança). Com a solução epsilon=0.8, obtida segundo o artigo, foi obtido apenas um cluster, e muito pouco ruído. Valores superiores a 0.8 não irão certamente ajudar os biólogos pois terão também apenas 1 cluster e um pouco de ruído (cada vez menos), todavia também não devemos apostar em valores muito baixos para epsilon pois nestes casos uma quantidade enorme de dados será considerada ruído, não sende este resultado útil. Note-se que estes dois extremos têm excelentes valores para recall.
+
+Deste modo fazemos variar os epsilons entre 0.3 e 0.8:
+
+DBSCAN.png
+
+Através do gráfico conseguido observar que para um valor abaixo de 0.4, o nosso algoritmo considera a maioria dos elementos como ruído tem um grande recall porque efetivamente consegue agrupar todos os pontos com a mesma label num mesmo cluster, contudo, sendo que os pontos estão quase todos num único esta medida não constitui uma boa indicação da performance do nosso classificador neste caso.
+
+As varias métricas indicam que epsilon=0.6 é sem dúvida o melhor valor parâmetro a testar, com valores de F1, Adjusted rand score, rand score e precision mais altos e recalls também não baixos. O intervalo entre 0.5 e 0.7 apresenta valores comparativamente elevados das métricas.
+
+
+Q6: Seleccione alguns valores dos parâmetros testados na questão cinco e examine os clusters correspondentes com mais atenção, gerando o ficheiro HTML com as imagens. Justifique a escolha destes valores, discuta as diferentes opções e proponha uma recomendação que poderia ajudar a tarefa dos biólogos de classificar as células e rejeitar erros de segmentação.
+R6:
+
+Para o algoritmo Kmeans, examinamos com mais atenção os clusters para os valores de k escolhidos na questão 5. A sua escolha foi justificada na mesma questão.
+
+k=7: 
+cluster0- aqui podem ser encontradas a maioria das células da fase 3.
+cluster1-essencialmente células na fase 1.
+cluster2- células na fase 1, aparecendo algumas na fase 2.
+clusters 3 e 4- células na fase 1.
+cluster5- células da fase 1 com bastante luminusidade nas bordas, aparecendo algumas na fase 2.
+cluster6- essencialmente erros de segmentação (com poucas celulas na fase 2 e/ou 3)
+
+KMEANS_7.html
+
+É de notar que neste caso as células na fase 2 encontram-se infelizmente divididas por vários clusters, sendo bastante associadas a células na fase 1 com mais luminusidade nas bordas.
+
+k=9: 
+clusters0 e 1- células na fase 1.
+cluster2-aqui podem ser encontradas a grande maioria das células da fase 3.
+clusters3 e 8- células na fase 1 (com luminusidade nas bordas), com algumas células na fase 2.
+clusters4- essencialmente erros de segmentação.
+clusters 5,6 e 7- células na fase 1
+
+KMEANS_9.html
+
+O mesmo problema mantém-se.
+
+k=11:
+
+clusters0,1,3,4,5,6 e 10- células da fase 1 (muitas vezes separadas por níveis de luminosidade).
+cluster 7- células na fase 3.
+cluster 8-essencialmente erros de segmentação.
+clusters 2 e 9- bastantes células na fase 2, misturadas com algumas na fase 1 com luminusidade algo intensa.
+
+KMEANS_11.html
+
+Aqui o problema desvanece um pouco, sendo possível uma melhor separação da células na fase 2.
+
+
+Conforme o descrito no gráfico do DBSCAN da questão anterior, observamos que existe um valor para o qual os indices de precisão, adjusted rand index, rand index e F1, tem um pico onde o eps. = 0.6. Assim selecionamos os valores 0.5,0.6 e 0.7 para o estudo. Para eps = 0.5, obtivemos os resultados observáveis no ficheiro:
+
+DBSCAN_0.5.html
+
+Observamos um total de 10 clusters mais o ruído, sendo que uma grande quantidade de imagens foram classificadas como ruído. A maioria das imagens estão agrupadas no cluster 1, contendo uma elevada heterogeneidade, contendo imagens de todos os tipos contudo com uma maior incidência das células da fase 1. Os restantes clusters têm uma 
+heterogeinidade e uma dimensão muito menor, sendo constituídos por imagens bastante semelhantes entre si. Todavia, com os erros, células da fase 2 e 3 agrupadas praticamente num só cluster, quando temos um total de 10 cluster, mostram que esta solução é bastante pobre.
+
+
+Para eps = 0.6, obtivemos os resultados observáveis no ficheiro:
+
+DBSCAN_0.6.html
+
+Estávamos à espera de obter melhores resultados com este valor de eps contudo, os resultados foram semelhantes ao anterior, contudo, neste caso, temos um total de 4 clusters mais ruído sendo que o primeiro apresenta agora uma ainda maior heterogeneidade, contudo, os restantes são precisos, sendo que o cluster 1 por exemplo apresenta vários exemplares de células na fase 3 estando na fase final da sua divisão contudo grande parte dos exemplares dessa fase foram classificados como ruído.
+
+
+Para eps = 0.7, obtivemos os resultados observáveis no ficheiro:
+
+DBSCAN_0.7.html
+
+Por fim, os resultados para eps=0.7 vão se aproximando dos discutidos na questão 4. Ou seja, temos apenas 2 clusters mais ruído e uma heterogeneidade imensa no primeiro cluster. Sendo o segundo de certa forma preciso mas com muitos exemplares da fase 2 em falta.
+
+Assim sendo, para os valores de eps analisados os clusters obtidos são bastante heterogéneos e grandes, normalmente o cluster 0, contendo imagens com células de todos os tipos. Deste modo, o DBSCAN com estes valores de eps não é útil para os biólogos uma vez que com um cluster tão grande e heterogéneo não lhes poupa trabalho manual.
+
+A melhor solução é o Kmeans para k=11. Embora não divida as células extatamente pelas labels definidas pelos biólogos + erros (num mundo ideal seria ter 4 clusters), permite uma divisão bastante clara das fases celulares e dos erros. Temos assim um número mais elevado de clusters, com subconjuntos mais pequenos de imagens bastante semelhantes entre si (aqui o DBSCAN falha), o que permitirá aos biólogos poupar bastante trabalho manual (pois o número de clusters não é demasiado alto).
+
+Sendo assim, propomos como ajuda aos biólogos, entre estes dois métodos, a solução descrita acima para k=11.
+
+
+Q7: Discuta vantagens, problemas ou outros aspectos destes dois algoritmos (K-Means e DBSCAN) que considere relevantes para ajudar os biólogos a organizar estas imagens, considerando o seu conhecimento teórico destes algoritmos bem como os resultados que obteve no seu trabalho.
+
+R7:
+
+O K-means é fácil de implementar, fácil de entender, é escalável e adapta-se bem a novos data points. Por outro lado, é difícil estimar à priori o número k de clusters ideal. Além disso, este algoritmo funciona bem quando temos clusters com um formato aproximadamente redondo, mas não para clusters com formatos mais disformes ou com variâncias diferentes e ruído. As nossas features não têm formas esféricas, como seria aconselhável para a sua aplicação.
+
+Por outro lado, o DBSCAN resolve parte deste problema do formato dos clusters, pois os membros dos clusters propagam-se através de caminhos de core points e não apenas em redor dos protótipos escolhidos aleatoriamente . O DBSCAN tem uma ótima performance em datasets em que as features verificam diferenças elevadas de densidade (pois associam áreas conexas com grande densidade a clusters), eliminando o ruído. Contudo, é difícil estimar o valor de epsilon e o método tem dificuldades em atuar em dados sem áreas particulares de grande densidade (sem grandes diferenças), como neste problema que estamos abordar. Como não se verificam claras áreas de maior e menor densidade nas nossas features, o algoritmo acaba por não ser preciso e quase todos os pontos são colocados num cluster (para valores mais altos e epsilon) ou quase todos os pontos são ruído (para valores mais baixos). Não é possível distinguir com base em densidade.
+
+Sendo assim, as features não têm o formato ideal para nenhum dos métodos, e nenhum destes conseguir a divisão ideal (3 fases mais erros). Todavia, o Kmeans, com um number de cluster mais elevado (k=11), acaba por conseguir dividir as imagens por subconjuntos com elementos bastante semelhantes entre si, sendo este um resultado útil para poupar trabalho aos biólogos, o que é o mais importante.
+
+
+Q8: Considere outros algoritmos de clustering implementados na biblioteca Scikit-Learn. Escolha um e aplique-o a este problema, optimizando os parâmetros que julgar adequado da forma que lhe parecer melhor. Justifique a sua escolha e discuta se esta opção daria resultados mais úteis para os biólogos.
+R8:
+Fizemos vários teste com diferentes algoritmos, e gostámos dos resultados obtidos com o AgglomerativeClustering e o Gaussian mixture.
+
+AgglomerativeClustering: Um tipo de Hierarchical Clustering, de certa forma uma abordagem inversa á da questão 9. Cada imagem começa no seu próprio cluster e os melhores 2 clusters vão sendo aglomerados de acordo com um linkage method ( ward (default): minimiza a variância dos clusters a ser juntos).
+
+Gaussian mixture: modelo probabilístico que assume que todos os pontos são gerados pela mistura de um número finito de distribuições normais de parâmetros desconhecidos. No fundo, generaliza o K-means indroduzindo informação sobre a estrutura da covariância entre os dados. Permite assim mais formatos dos clusters que não o circular (caso do K-means, pois assume que as covariâncias são nulas).
+
+Nos seguintes gráficos, figuram as métricas descritas anteriormente para ambos os modelos. Com base nelas, escolhemos os parâmetros (número de clusters) para os quais inspeccionar com detalhe os resultados, tendo em especial atenção reduzir o número de clusters, de forma a conseguir uma boa separação com menos clusters, poupando assim trabalho aos biólogos.
+
+GaussianMixture.png
+AgglomerativeClustering.png
+
+Decidimos por experimentar k=4, k=6 e k=9 para o Gaussian mix e K=4  e k=7 para o AgglomerativeClustering:
+
+AgglomerativeClustering:
+
+AgglomerativeClustering_4.html
+
+AgglomerativeClustering_7.html
+
+Desde logo, k=4 consegue resultados interessantes, com dois clusters essencialmente para a fase1. Outro deles em que figuram quase todas as células na fase 2, juntamente com células na fase 1. E outro cluster mais heterogéneo com os erros e um pouco de cada fase, mas onde figuram todas a células na fase 3. É desde logo uma divisão muito promissora, apenas com 4 clusters. 
+
+Com k=7, em relação ao anterior, é ainda possível dividir a maioria das células na fase 2 das células na fase 1 e a maioria da células na fase 3 dos erros e restante ruído. Assim, ficamos com um cluster para a fase 3, outro para a fase 2, outro para os erros (algumas observações da fase1), e as restantes com essencialmente células na fase 1 (com umas poucas na fase 2). É uma divisão bastante completa, com apenas 7 clusters, sendo neste trabalho a melhor para ajudar os biólogos.
+
+Gaussian mix:
+
+GaussianMixture_4.html
+
+GaussianMixture_6.html
+
+GaussianMixture_9.html
+
+Com 4 clusters a divisão é promissora, sendo na verdade bastante idêntica à de AgglomerativeClustering.
+
+Com 6 clusters não melhora, pois mantém-se a estrutura do anterior, apenas mais clusters para a fase 1.
+
+Com 9 clusters, embora se consigam dividir os erros das células com label 3, as células com label 3 e label 2 são agregadas, ficando-se com um cluster para os erros, um para as células com labels 2 e 3 e os restantes essencialmente para células de label 1. Não é uma má divisão, na verdade é uma das melhores do trabalho, mas continua a requerer que os biólogos dividam manualmente a fase 2 da fase 3, pelo que a solução de AgglomerativeClustering é melhor.
+
+
+
+Q9: (Opcional) Implemente o algoritmo de clustering hierárquico Bissecting K-Means, conforme descrito na página do enunciado e na Aula 19. Examine e discuta os resultados e sua aplicação ao problema de ajudar os biólogos a selecionar e classificar imagens de células.
+R9:
+Implementámos o algoritmo Bissecting K-Means (divisive clustering) e apresentamos os resultados para os números de clusters escolhidos na questão 5 para o Kmeans (pareceu-nos razoável para comparar):
+
+hierarchicalKmeans_7.html
+hierarchicalKmeans_9.html
+hierarchicalKmeans_11.html
+
+Este método é hierárquico e vai dividindo sucessivamente clusters em dois subclusters.
+
+Os resultados obtidos foram bastante promissores.
+
+Para k=7, logo na primeira sub-divisão obtiveram-se um cluster com essencialmente células na fase 1 (umas poucas na fase 2) e outro com todo o tipo de células, mas que contém quase todas as células na fase2,3 e erros. Depois, o cluster com células na fase 1 foi-se subdividindo de acordo com graus de luminosidade nas imagens e o outro cluster dividiu-se em 2: um essencialmente com células na fase 2 e 3 e outro essencialmente com erros, fase 1 (algumas desta são estranhas, é difícil perceber se realmente são da fase 1 ou erros) e poucas na fase 2. De novo, as células na fase 2 apresentam-se como o maior problema, mas a solução parece-se boa, especialmente se o objectivo foi triar á partida células na fase 1 (vai quase tudo para um cluster com subclusters).
+
+Para k=9, a vantagem em relação a k=7 é a divisão do subcluster com erros, fase1 e fase2 em dois subclusters: um deles com essencialmente com células na fase 1 e outro deles com erros e os poucas células na fase 2. Assim, torna-se fácil de excluir os erros (sacrificando poucas células na fase 2).
+
+Não se vêm grandes vantagens em aumentar o número de clusters para 11.
+
+Sugerimos então aos biólogos que utilizem a solução para k=9, pois permite uma divisão tão boa como com k=11, mas com menos 2 clusters.
+
+O principal desafio continua a ser as células na fase 2, que facilmente se confundem com células na fase 3, com erros ou mesmo com células na fase 1 com um certo grau de luminosidade na imagem. No entanto, consideramos que a nossa análise já ajuda bastante os biólogos, e com menos clusters do que o algoritmo Kmeans.
